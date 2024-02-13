@@ -30,52 +30,72 @@ def choose_file():
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
-    print('Selected file:', file_path)
+    print('\n\n'+'Selected file:', file_path, '\n')
     return file_path
 
 # Function to generate next PIN combination
-def next_pin(pin):
-    if not pin:  # If pin is empty, return '1'
-        return '1'
-    
-    carry = 1
-    new_pin = ''
-    for digit in pin[::-1]:
-        new_digit = (int(digit) + carry) % 10
-        carry = (int(digit) + carry) // 10
-        new_pin = str(new_digit) + new_pin
-    if carry:
-        new_pin = str(carry) + new_pin
-    return new_pin.zfill(len(pin))  # Ensure the new PIN has the same length as the input PIN
+def next_pin(pin_length):
+    for digits in range(pin_length, pin_length + 1):
+        for i in range(0, 10 ** digits):
+            yield str(i).zfill(digits)
+
 
 # Main function
 def main():
-    file_path = choose_file()  # Prompt user to choose the PDF file
+    file_path = choose_file()
     if not file_path:
         print("No file selected.")
         return
 
     if not is_pdf_encrypted(file_path):
-        print("The PDF file is not encrypted. No need to try PINs.")
+        print("The PDF file is not encrypted.")
         return
 
-    pin = ''
+    def ask_user():
+        ask = input("Do You know the length of the PIN used? (y/n) : ")
+        if ask == 'y' or ask == 'Y':
+            ask = True
+        elif ask == 'n' or ask == 'N':
+            ask = False
+        else:
+            print('Please enter correct choice...')
+            ask_user()
+        
+        return ask
+    
+    choice = ask_user()
+    
     correct_pin = None
-    pin_length = 1
-
-    print('before while loop 1')
-    while True:
-        print('started while loop 1')
-        pin = '0' * pin_length
-        while pin != '1' + '0' * (pin_length - 1):
-            print("Trying PIN:", pin)
-            if try_opening_pdf(file_path, pin):
-                correct_pin = pin
+    pin_length = 0
+    
+    if choice == False:
+        while True:
+            for pin in next_pin(pin_length):
+                print("Trying PIN:", pin)
+                
+                if int(pin) == int('1' + '0' * pin_length) - 1:
+                    pin_length += 1
+                    
+                if try_opening_pdf(file_path, pin):
+                    correct_pin = pin
+                    break
+                
+            if correct_pin:
                 break
-            pin = next_pin(pin)
-        if correct_pin:
-            break
-        pin_length += 1
+    
+    elif choice == True:
+        length = int(input("Enter the length of the PIN : "))
+        if length > 0:            
+            for pin in next_pin(length):
+                print("Trying PIN:", pin)
+                    
+                if try_opening_pdf(file_path, pin):
+                    correct_pin = pin
+                    break
+                
+                if correct_pin:
+                    break
+            
 
     # Print the correct PIN if found
     if correct_pin:
